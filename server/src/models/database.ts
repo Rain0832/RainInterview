@@ -1,0 +1,84 @@
+import Database from 'better-sqlite3'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const DB_PATH = path.join(__dirname, '..', '..', 'data', 'interview.db')
+
+// 确保 data 目录存在
+import fs from 'node:fs'
+fs.mkdirSync(path.dirname(DB_PATH), { recursive: true })
+
+const db = new Database(DB_PATH, { verbose: undefined })
+
+// WAL 模式提升并发性能
+db.pragma('journal_mode = WAL')
+db.pragma('foreign_keys = ON')
+
+// ==================== 建表 ====================
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    username TEXT UNIQUE NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    avatar TEXT DEFAULT '',
+    role TEXT DEFAULT 'user' CHECK(role IN ('user', 'admin')),
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS answer_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    company_id TEXT NOT NULL,
+    session_id TEXT NOT NULL,
+    question_id INTEGER NOT NULL,
+    question_title TEXT NOT NULL,
+    user_answer TEXT DEFAULT '',
+    correct_answer TEXT NOT NULL,
+    is_correct INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now')),
+    UNIQUE(user_id, company_id, session_id, question_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS submissions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    company_id TEXT NOT NULL,
+    session_id TEXT NOT NULL,
+    question_id INTEGER NOT NULL,
+    language TEXT NOT NULL DEFAULT 'cpp',
+    code TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending'
+      CHECK(status IN ('pending','running','accepted','wrong_answer','time_limit','memory_limit','runtime_error','compile_error','system_error')),
+    test_results TEXT DEFAULT '[]',
+    llm_review TEXT DEFAULT '',
+    llm_score INTEGER DEFAULT NULL,
+    execution_time_ms INTEGER DEFAULT NULL,
+    memory_kb INTEGER DEFAULT NULL,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS user_questions (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    type TEXT NOT NULL CHECK(type IN ('choice', 'coding')),
+    choices TEXT DEFAULT '[]',
+    answer TEXT DEFAULT '',
+    note TEXT DEFAULT '',
+    difficulty TEXT DEFAULT 'Medium' CHECK(difficulty IN ('Easy', 'Medium', 'Hard')),
+    tags TEXT DEFAULT '[]',
+    is_public INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_records_user ON answer_records(user_id);
+  CREATE INDEX IF NOT EXISTS idx_submissions_user ON submissions(user_id);
+  CREATE INDEX IF NOT EXISTS idx_user_questions_user ON user_questions(user_id);
+`)
+
+export default db

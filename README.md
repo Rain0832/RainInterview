@@ -33,6 +33,10 @@
 - 🏢 **多公司多场次** — 数据驱动，按「公司 → 场次 → 题目」三级组织
 - 📊 **统计面板** — 首页展示公司数、场次数、选择题数、编程题数
 - 🧭 **面包屑导航** — 动态路径追踪，随时回退
+- 🌙 **黑夜模式** — 全站暗色主题切换，自动保存偏好
+- 📝 **错题本** — 自动记录做错的题目，支持重做
+- 📊 **做题记录** — 追踪做题进度、正确率统计
+- ➕ **用户上传题目** — 支持自定义选择题/编程题，本地持久化
 
 ---
 
@@ -56,9 +60,10 @@
 ```
 Interview/
 ├── README.md                     # 项目文档
+├── EXPANSION_PLAN.md             # 上线拓展方案
 ├── index.html                    # 入口 HTML
 ├── package.json                  # 依赖与脚本
-├── vite.config.ts                # Vite 构建配置
+├── vite.config.ts                # Vite 构建配置（已配置外网访问）
 ├── tsconfig.json                 # TypeScript 配置（根）
 ├── tsconfig.app.json             # TypeScript 配置（应用）
 ├── tsconfig.node.json            # TypeScript 配置（Node）
@@ -70,12 +75,16 @@ Interview/
 │   └── icons.svg
 │
 └── src/                          # 源码
-    ├── main.tsx                  # 应用入口
-    ├── App.tsx                   # 路由定义
-    ├── index.css                 # TailwindCSS 入口
+    ├── main.tsx                  # 应用入口（Provider 嵌套）
+    ├── App.tsx                   # 路由定义（含新增路由）
+    ├── index.css                 # TailwindCSS + 暗色模式变量
+    │
+    ├── contexts/                 # 🧠 全局状态管理
+    │   ├── ThemeContext.tsx       #   主题切换（亮/暗）
+    │   └── RecordContext.tsx      #   做题记录 + 用户题目
     │
     ├── components/               # 公共组件
-    │   └── Layout.tsx            #   全局布局 (Header + 面包屑 + Footer)
+    │   └── Layout.tsx            #   全局布局 (Header + 导航 + 暗色切换)
     │
     ├── data/                     # 📦 题目数据
     │   ├── types.ts              #   TypeScript 类型定义
@@ -87,11 +96,14 @@ Interview/
     │   └── mihoyo.ts             #   米哈游题库 (模拟)
     │
     └── pages/                    # 📄 页面
-        ├── HomePage.tsx          #   首页
+        ├── HomePage.tsx          #   首页（含快捷入口）
         ├── CompanyPage.tsx       #   公司页
         ├── SessionPage.tsx       #   场次页
-        ├── ChoicePage.tsx        #   选择题答题
-        └── CodingPage.tsx        #   编程题查看
+        ├── ChoicePage.tsx        #   选择题答题（集成记录）
+        ├── CodingPage.tsx        #   编程题查看
+        ├── WrongBookPage.tsx     #   📝 错题本
+        ├── MyRecordsPage.tsx     #   📊 做题记录
+        └── UploadPage.tsx        #   ➕ 上传题目
 ```
 
 ---
@@ -101,11 +113,14 @@ Interview/
 ### 路由
 
 ```
-/                                          → 首页 (公司列表)
+/                                          → 首页 (公司列表 + 快捷入口)
 /company/:companyId                        → 公司详情 (场次列表)
 /company/:companyId/:sessionId             → 场次详情 (题目总览)
 /company/:companyId/:sessionId/choice      → 选择题交互答题
 /company/:companyId/:sessionId/coding/:id  → 编程题查看
+/wrong-book                                → 错题本
+/my-records                                → 做题记录
+/upload                                    → 上传题目
 ```
 
 ### 数据模型
@@ -210,9 +225,15 @@ import { xxxTest1 } from './xxx';
 
 - [ ] 收集更多公司 27 届真题（字节、腾讯、网易、百度、阿里云等）
 - [ ] 搜索功能 — 按关键字 / 标签 / 难度筛选
-- [ ] 做题记录 — LocalStorage 持久化做题进度
-- [ ] 深色模式
-- [ ] 代码在线运行
+- [x] 做题记录 — LocalStorage 持久化做题进度
+- [x] 深色模式
+- [x] 错题本 — 自动记录做错的题目
+- [x] 用户上传题目 — 自定义选择题/编程题
+- [ ] 代码在线运行（Judge0 沙箱）
+- [ ] 大模型代码评审
+- [ ] 用户系统 + 云端数据同步
+
+> 📋 详细拓展方案请查看 [EXPANSION_PLAN.md](./EXPANSION_PLAN.md)
 
 ---
 

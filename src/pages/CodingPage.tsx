@@ -1,6 +1,7 @@
 import { useParams, Link } from 'react-router-dom'
 import { useState, useCallback } from 'react'
 import { getSessionById, type CodingQuestion } from '../data/questions'
+import { useTheme } from '../contexts/ThemeContext'
 
 export default function CodingPage() {
   const { companyId, sessionId, questionId } = useParams<{
@@ -12,6 +13,7 @@ export default function CodingPage() {
   const question = session?.questions.find(
     (q) => q.id === Number(questionId) && q.type === 'coding'
   ) as CodingQuestion | undefined
+  const { isDark } = useTheme()
 
   const [code, setCode] = useState(question?.codeTemplate ?? '')
   const [activeTab, setActiveTab] = useState<'description' | 'solution'>('description')
@@ -28,19 +30,18 @@ export default function CodingPage() {
     return (
       <div className="py-16 text-center">
         <div className="text-6xl mb-4">😕</div>
-        <h2 className="text-2xl font-bold text-slate-800 mb-2">未找到该题目</h2>
-        <Link to={`/company/${companyId}/${sessionId}`} className="text-blue-600">返回</Link>
+        <h2 className={`text-2xl font-bold mb-2 ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>未找到该题目</h2>
+        <Link to={`/company/${companyId}/${sessionId}`} className="text-blue-500">返回</Link>
       </div>
     )
   }
 
   const difficultyColor = {
-    Easy: 'bg-green-100 text-green-700 border-green-200',
-    Medium: 'bg-yellow-100 text-yellow-700 border-yellow-200',
-    Hard: 'bg-red-100 text-red-700 border-red-200',
+    Easy: isDark ? 'bg-green-900/40 text-green-300 border-green-700' : 'bg-green-100 text-green-700 border-green-200',
+    Medium: isDark ? 'bg-yellow-900/40 text-yellow-300 border-yellow-700' : 'bg-yellow-100 text-yellow-700 border-yellow-200',
+    Hard: isDark ? 'bg-red-900/40 text-red-300 border-red-700' : 'bg-red-100 text-red-700 border-red-200',
   }
 
-  // 获取当前 session 的所有编程题用于导航
   const codingQuestions = (session?.questions.filter((q) => q.type === 'coding') ?? []) as CodingQuestion[]
   const currentIdx = codingQuestions.findIndex((q) => q.id === question.id)
   const prevQ = currentIdx > 0 ? codingQuestions[currentIdx - 1] : null
@@ -49,11 +50,11 @@ export default function CodingPage() {
   return (
     <div className="py-6">
       {/* 题目头部 */}
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 mb-6">
+      <div className={`rounded-2xl p-6 shadow-sm border mb-6 ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-100'}`}>
         <div className="flex items-start justify-between flex-wrap gap-4">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-2xl font-bold text-slate-800">{question.title}</h1>
+              <h1 className={`text-2xl font-bold ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>{question.title}</h1>
               {question.difficulty && (
                 <span className={`px-3 py-1 text-sm font-medium rounded-lg border ${difficultyColor[question.difficulty]}`}>
                   {question.difficulty}
@@ -62,13 +63,13 @@ export default function CodingPage() {
             </div>
             <div className="flex items-center gap-2 flex-wrap mt-2">
               {question.tags?.map((tag) => (
-                <span key={tag} className="px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-medium">
+                <span key={tag} className={`px-2.5 py-1 rounded-lg text-xs font-medium ${isDark ? 'bg-slate-700 text-slate-300' : 'bg-slate-100 text-slate-600'}`}>
                   {tag}
                 </span>
               ))}
             </div>
           </div>
-          <div className="text-sm text-slate-500 text-right space-y-1">
+          <div className={`text-sm text-right space-y-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
             <div>⏱ {question.timeLimit}</div>
             <div>💾 {question.memoryLimit}</div>
           </div>
@@ -79,14 +80,14 @@ export default function CodingPage() {
         {/* 左侧：题目描述 */}
         <div className="space-y-4">
           {/* Tab 切换 */}
-          <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
+          <div className={`flex gap-1 rounded-xl p-1 ${isDark ? 'bg-slate-700' : 'bg-slate-100'}`}>
             {(['description', 'solution'] as const).map((tab) => (
               <button
                 key={tab}
                 className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
                   activeTab === tab
-                    ? 'bg-white text-slate-800 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-700'
+                    ? isDark ? 'bg-slate-600 text-slate-100 shadow-sm' : 'bg-white text-slate-800 shadow-sm'
+                    : isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-500 hover:text-slate-700'
                 }`}
                 onClick={() => setActiveTab(tab)}
               >
@@ -96,53 +97,46 @@ export default function CodingPage() {
           </div>
 
           {activeTab === 'description' && (
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 space-y-5 max-h-[70vh] overflow-y-auto">
-              {/* 题目内容 */}
+            <div className={`rounded-2xl p-6 shadow-sm border space-y-5 max-h-[70vh] overflow-y-auto ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-100'}`}>
               <div>
-                <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">题目描述</h3>
-                <div className="text-slate-700 leading-relaxed whitespace-pre-wrap">
+                <h3 className={`text-sm font-semibold uppercase tracking-wide mb-3 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>题目描述</h3>
+                <div className={`leading-relaxed whitespace-pre-wrap ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
                   {question.content}
                 </div>
               </div>
-
-              {/* 输入描述 */}
               <div>
-                <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">输入描述</h3>
-                <div className="text-slate-700 leading-relaxed whitespace-pre-wrap">
+                <h3 className={`text-sm font-semibold uppercase tracking-wide mb-3 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>输入描述</h3>
+                <div className={`leading-relaxed whitespace-pre-wrap ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
                   {question.inputDesc}
                 </div>
               </div>
-
-              {/* 输出描述 */}
               <div>
-                <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">输出描述</h3>
-                <div className="text-slate-700 leading-relaxed whitespace-pre-wrap">
+                <h3 className={`text-sm font-semibold uppercase tracking-wide mb-3 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>输出描述</h3>
+                <div className={`leading-relaxed whitespace-pre-wrap ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
                   {question.outputDesc}
                 </div>
               </div>
-
-              {/* 示例 */}
               {question.examples.map((ex, idx) => (
                 <div key={idx} className="space-y-3">
-                  <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">
+                  <h3 className={`text-sm font-semibold uppercase tracking-wide ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                     示例 {idx + 1}
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
-                      <div className="text-xs font-medium text-slate-400 mb-1.5">输入</div>
-                      <pre className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm text-slate-800 overflow-x-auto font-mono">
+                      <div className={`text-xs font-medium mb-1.5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>输入</div>
+                      <pre className={`border rounded-lg p-3 text-sm overflow-x-auto font-mono ${isDark ? 'bg-slate-900 border-slate-600 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-800'}`}>
                         {ex.input}
                       </pre>
                     </div>
                     <div>
-                      <div className="text-xs font-medium text-slate-400 mb-1.5">输出</div>
-                      <pre className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm text-slate-800 overflow-x-auto font-mono">
+                      <div className={`text-xs font-medium mb-1.5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>输出</div>
+                      <pre className={`border rounded-lg p-3 text-sm overflow-x-auto font-mono ${isDark ? 'bg-slate-900 border-slate-600 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-800'}`}>
                         {ex.output}
                       </pre>
                     </div>
                   </div>
                   {ex.explanation && (
-                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+                    <div className={`p-3 border rounded-lg text-sm ${isDark ? 'bg-blue-900/30 border-blue-700 text-blue-300' : 'bg-blue-50 border-blue-200 text-blue-800'}`}>
                       💡 {ex.explanation}
                     </div>
                   )}
@@ -152,8 +146,8 @@ export default function CodingPage() {
           )}
 
           {activeTab === 'solution' && (
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-              <div className="text-center text-slate-400 py-12">
+            <div className={`rounded-2xl p-6 shadow-sm border ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-100'}`}>
+              <div className={`text-center py-12 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
                 <div className="text-4xl mb-3">🧠</div>
                 <p>题解区 —— 做完题后再看哦</p>
                 <p className="text-sm mt-1">后续版本将支持添加题解</p>
@@ -164,8 +158,7 @@ export default function CodingPage() {
 
         {/* 右侧：代码编辑器 */}
         <div className="space-y-4">
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-            {/* 编辑器顶栏 */}
+          <div className={`rounded-2xl shadow-sm border overflow-hidden ${isDark ? 'border-slate-700' : 'border-slate-100'}`}>
             <div className="flex items-center justify-between px-4 py-3 bg-slate-800 text-white">
               <div className="flex items-center gap-2">
                 <span className="w-3 h-3 rounded-full bg-red-500"></span>
@@ -188,8 +181,6 @@ export default function CodingPage() {
                 </button>
               </div>
             </div>
-
-            {/* 代码输入区 */}
             <div className="relative">
               <textarea
                 value={code}
@@ -201,8 +192,7 @@ export default function CodingPage() {
             </div>
           </div>
 
-          {/* 操作提示 */}
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
+          <div className={`border rounded-xl p-4 text-sm ${isDark ? 'bg-amber-900/20 border-amber-800 text-amber-300' : 'bg-amber-50 border-amber-200 text-amber-800'}`}>
             <strong>💡 提示：</strong> 建议复制代码到本地 IDE 中编写和调试，完成后粘贴回来。
             编辑器仅用于预览和快速编辑。
           </div>
@@ -210,11 +200,11 @@ export default function CodingPage() {
       </div>
 
       {/* 底部导航 */}
-      <div className="flex items-center justify-between mt-8 pt-6 border-t border-slate-200">
+      <div className={`flex items-center justify-between mt-8 pt-6 border-t ${isDark ? 'border-slate-700' : 'border-slate-200'}`}>
         {prevQ ? (
           <Link
             to={`/company/${companyId}/${sessionId}/coding/${prevQ.id}`}
-            className="px-5 py-2.5 bg-white text-slate-700 border border-slate-200 rounded-xl font-medium hover:bg-slate-50 transition-all no-underline"
+            className={`px-5 py-2.5 border rounded-xl font-medium transition-all no-underline ${isDark ? 'bg-slate-700 text-slate-200 border-slate-600 hover:bg-slate-600' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
           >
             ← {prevQ.title}
           </Link>

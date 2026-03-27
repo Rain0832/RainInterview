@@ -1,16 +1,18 @@
 import { useParams, Link } from 'react-router-dom'
 import { getSessionById, type CodingQuestion } from '../data/questions'
+import { useTheme } from '../contexts/ThemeContext'
 
 export default function SessionPage() {
   const { companyId, sessionId } = useParams<{ companyId: string; sessionId: string }>()
   const session = getSessionById(companyId!, sessionId!)
+  const { isDark } = useTheme()
 
   if (!session) {
     return (
       <div className="py-16 text-center">
         <div className="text-6xl mb-4">😕</div>
-        <h2 className="text-2xl font-bold text-slate-800 mb-2">未找到该场次</h2>
-        <Link to={`/company/${companyId}`} className="text-blue-600 hover:text-blue-800">返回公司页面</Link>
+        <h2 className={`text-2xl font-bold mb-2 ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>未找到该场次</h2>
+        <Link to={`/company/${companyId}`} className="text-blue-500 hover:text-blue-400">返回公司页面</Link>
       </div>
     )
   }
@@ -19,17 +21,17 @@ export default function SessionPage() {
   const codingQuestions = session.questions.filter((q) => q.type === 'coding') as CodingQuestion[]
 
   const difficultyColor = {
-    Easy: 'bg-green-100 text-green-700',
-    Medium: 'bg-yellow-100 text-yellow-700',
-    Hard: 'bg-red-100 text-red-700',
+    Easy: isDark ? 'bg-green-900/40 text-green-300' : 'bg-green-100 text-green-700',
+    Medium: isDark ? 'bg-yellow-900/40 text-yellow-300' : 'bg-yellow-100 text-yellow-700',
+    Hard: isDark ? 'bg-red-900/40 text-red-300' : 'bg-red-100 text-red-700',
   }
 
   return (
     <div className="py-8">
       {/* Session header */}
-      <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-100 mb-8">
-        <h1 className="text-3xl font-bold text-slate-800 mb-2">{session.name}</h1>
-        <p className="text-slate-500">
+      <div className={`rounded-2xl p-8 shadow-sm border mb-8 ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-100'}`}>
+        <h1 className={`text-3xl font-bold mb-2 ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>{session.name}</h1>
+        <p className={isDark ? 'text-slate-400' : 'text-slate-500'}>
           {session.date && `${session.date} · `}{session.type} · 共 {session.questions.length} 题
         </p>
       </div>
@@ -37,20 +39,20 @@ export default function SessionPage() {
       {/* 选择题模块 */}
       {choiceQuestions.length > 0 && (
         <div className="mb-8">
-          <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+          <h2 className={`text-xl font-bold mb-4 flex items-center gap-2 ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>
             <span className="text-xl">✅</span> 选择题
-            <span className="text-sm font-normal text-slate-400 ml-1">({choiceQuestions.length} 题)</span>
+            <span className={`text-sm font-normal ml-1 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>({choiceQuestions.length} 题)</span>
           </h2>
           <Link
             to={`/company/${companyId}/${sessionId}/choice`}
-            className="group block bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:shadow-lg hover:border-green-200 transition-all duration-300 no-underline"
+            className={`group block rounded-2xl p-6 shadow-sm border hover:shadow-lg transition-all duration-300 no-underline ${isDark ? 'bg-slate-800 border-slate-700 hover:border-green-500' : 'bg-white border-slate-100 hover:border-green-200'}`}
           >
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-semibold text-slate-800 group-hover:text-green-600 transition-colors">
+                <h3 className={`text-lg font-semibold group-hover:text-green-500 transition-colors ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>
                   开始答题
                 </h3>
-                <p className="text-sm text-slate-500 mt-1">
+                <p className={`text-sm mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                   包含 {choiceQuestions.length} 道单选题，涵盖 AI/LLM、计算机基础等
                 </p>
               </div>
@@ -67,22 +69,22 @@ export default function SessionPage() {
       {/* 编程题模块 */}
       {codingQuestions.length > 0 && (
         <div>
-          <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+          <h2 className={`text-xl font-bold mb-4 flex items-center gap-2 ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>
             <span className="text-xl">💻</span> 编程题
-            <span className="text-sm font-normal text-slate-400 ml-1">({codingQuestions.length} 题)</span>
+            <span className={`text-sm font-normal ml-1 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>({codingQuestions.length} 题)</span>
           </h2>
           <div className="space-y-3">
             {codingQuestions.map((q, idx) => (
               <Link
                 key={q.id}
                 to={`/company/${companyId}/${sessionId}/coding/${q.id}`}
-                className="group flex items-center bg-white rounded-xl p-5 shadow-sm border border-slate-100 hover:shadow-md hover:border-blue-200 transition-all duration-200 no-underline"
+                className={`group flex items-center rounded-xl p-5 shadow-sm border hover:shadow-md transition-all duration-200 no-underline ${isDark ? 'bg-slate-800 border-slate-700 hover:border-blue-500' : 'bg-white border-slate-100 hover:border-blue-200'}`}
               >
-                <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-sm font-bold text-slate-600 mr-4 shrink-0 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold mr-4 shrink-0 transition-colors ${isDark ? 'bg-slate-700 text-slate-300 group-hover:bg-blue-900/50 group-hover:text-blue-300' : 'bg-slate-100 text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-600'}`}>
                   {idx + 1}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-base font-semibold text-slate-800 group-hover:text-blue-600 transition-colors truncate">
+                  <h3 className={`text-base font-semibold group-hover:text-blue-500 transition-colors truncate ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>
                     {q.title}
                   </h3>
                   <div className="flex items-center gap-2 mt-1.5 flex-wrap">
@@ -92,13 +94,13 @@ export default function SessionPage() {
                       </span>
                     )}
                     {q.tags?.map((tag) => (
-                      <span key={tag} className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-xs">
+                      <span key={tag} className={`px-2 py-0.5 rounded text-xs ${isDark ? 'bg-slate-700 text-slate-400' : 'bg-slate-100 text-slate-600'}`}>
                         {tag}
                       </span>
                     ))}
                   </div>
                 </div>
-                <span className="text-slate-400 group-hover:text-blue-500 group-hover:translate-x-1 transition-all ml-4 shrink-0">
+                <span className={`group-hover:text-blue-500 group-hover:translate-x-1 transition-all ml-4 shrink-0 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
                   →
                 </span>
               </Link>

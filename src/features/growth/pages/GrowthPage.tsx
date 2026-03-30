@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { useTheme } from '../../../contexts/ThemeContext'
 import { useAuth } from '../../../contexts/AuthContext'
 import { api } from '../../../services/api'
+import { findCourse, type CourseModule, type Lesson } from '../data/courses'
 
 // ==================== 类型 ====================
 
@@ -107,11 +108,13 @@ export default function GrowthPage() {
 
   const [roadmap, setRoadmap] = useState<RoadmapData>(DEFAULT_ROADMAP)
   const [notes, setNotes] = useState<Note[]>([])
-  const [activeTab, setActiveTab] = useState<'roadmap' | 'notes'>('roadmap')
+  const [activeTab, setActiveTab] = useState<'roadmap' | 'notes' | 'learn'>('roadmap')
   const [editingNote, setEditingNote] = useState<Note | null>(null)
   const [previewMode, setPreviewMode] = useState(false)
   const [synced, setSynced] = useState(false)
   const [expandedMilestone, setExpandedMilestone] = useState<string | null>(null)
+  const [activeCourse, setActiveCourse] = useState<CourseModule | null>(null)
+  const [activeLesson, setActiveLesson] = useState<Lesson | null>(null)
 
   // 从服务器加载 or localStorage
   const loadData = useCallback(async () => {
@@ -229,9 +232,9 @@ export default function GrowthPage() {
 
       {/* Tab */}
       <div className={`flex gap-1 rounded-xl p-1 mb-6 ${isDark ? 'bg-slate-700' : 'bg-slate-100'}`}>
-        {(['roadmap', 'notes'] as const).map(tab => (
+        {(['roadmap', 'learn', 'notes'] as const).map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)} className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${activeTab === tab ? (isDark ? 'bg-slate-600 text-white shadow' : 'bg-white text-slate-800 shadow') : (isDark ? 'text-slate-400' : 'text-slate-500')}`}>
-            {tab === 'roadmap' ? `🗺️ 路线图 (${roadmap.milestones.length})` : `📝 学习笔记 (${notes.length})`}
+            {tab === 'roadmap' ? `🗺️ 路线图 (${roadmap.milestones.length})` : tab === 'learn' ? '📚 学习课程' : `📝 笔记 (${notes.length})`}
           </button>
         ))}
       </div>
@@ -276,12 +279,23 @@ export default function GrowthPage() {
                     {/* 子任务 */}
                     {m.subTasks && (
                       <div className={`px-5 py-3 space-y-1 ${isDark ? 'bg-slate-800/50' : 'bg-slate-50/50'}`}>
-                        {m.subTasks.map((t, tIdx) => (
-                          <label key={tIdx} className={`flex items-center gap-2.5 cursor-pointer py-1 px-2 rounded-lg transition-colors ${isDark ? 'hover:bg-slate-700' : 'hover:bg-slate-100'}`}>
-                            <input type="checkbox" checked={t.done} onChange={() => toggleSubTask(m.id, tIdx)} className="w-4 h-4 rounded accent-blue-500 cursor-pointer" />
-                            <span className={`text-sm ${t.done ? (isDark ? 'text-slate-500 line-through' : 'text-slate-400 line-through') : (isDark ? 'text-slate-200' : 'text-slate-700')}`}>{t.title}</span>
-                          </label>
-                        ))}
+                        {m.subTasks.map((t, tIdx) => {
+                          const course = findCourse(m.id, t.title)
+                          return (
+                          <div key={tIdx} className={`flex items-center gap-2 py-1 px-2 rounded-lg transition-colors ${isDark ? 'hover:bg-slate-700' : 'hover:bg-slate-100'}`}>
+                            <label className="flex items-center gap-2.5 cursor-pointer flex-1 min-w-0">
+                              <input type="checkbox" checked={t.done} onChange={() => toggleSubTask(m.id, tIdx)} className="w-4 h-4 rounded accent-blue-500 cursor-pointer shrink-0" />
+                              <span className={`text-sm truncate ${t.done ? (isDark ? 'text-slate-500 line-through' : 'text-slate-400 line-through') : (isDark ? 'text-slate-200' : 'text-slate-700')}`}>{t.title}</span>
+                            </label>
+                            {course && (
+                              <button onClick={() => { setActiveCourse(course); setActiveLesson(course.lessons[0]); setActiveTab('learn') }}
+                                className={`shrink-0 text-xs px-2 py-1 rounded-lg cursor-pointer transition-colors ${isDark ? 'bg-blue-900/30 text-blue-300 hover:bg-blue-900/50' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`}>
+                                📚 学习
+                              </button>
+                            )}
+                          </div>
+                          )
+                        })}
                       </div>
                     )}
                     {/* 关联笔记 */}
@@ -308,6 +322,90 @@ export default function GrowthPage() {
               </div>
             )
           })}
+        </div>
+      )}
+
+      {/* ==================== 学习课程 ==================== */}
+      {activeTab === 'learn' && (
+        <div>
+          {activeCourse && activeLesson ? (
+            <div>
+              {/* 课程头部 */}
+              <div className={`rounded-2xl border p-5 mb-4 ${c}`}>
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className={`text-lg font-bold ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>
+                    📚 {activeCourse.subTaskTitle}
+                  </h2>
+                  <button onClick={() => { setActiveCourse(null); setActiveLesson(null) }}
+                    className={`text-xs px-3 py-1.5 rounded-lg cursor-pointer ${isDark ? 'bg-slate-600 text-slate-300' : 'bg-slate-100 text-slate-600'}`}>
+                    ← 返回课程列表
+                  </button>
+                </div>
+                {/* 章节导航 */}
+                <div className="flex gap-2 flex-wrap">
+                  {activeCourse.lessons.map((l, i) => (
+                    <button key={l.id} onClick={() => setActiveLesson(l)}
+                      className={`text-xs px-3 py-1.5 rounded-lg cursor-pointer transition-colors ${activeLesson.id === l.id ? 'bg-blue-600 text-white' : isDark ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                      Ch.{i + 1} {l.title.slice(0, 20)}{l.title.length > 20 ? '...' : ''} <span className={`ml-1 opacity-70`}>({l.duration})</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* 课程内容 */}
+              <div className={`rounded-2xl border p-6 ${c}`}>
+                <div className="flex items-center gap-3 mb-4">
+                  <span className={`text-xs px-2 py-1 rounded-lg ${isDark ? 'bg-blue-900/40 text-blue-300' : 'bg-blue-50 text-blue-700'}`}>⏱ {activeLesson.duration}</span>
+                  <h3 className={`text-lg font-bold ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>{activeLesson.title}</h3>
+                </div>
+                <div className={`prose-content ${isDark ? 'dark-prose' : ''}`}>
+                  {renderMarkdown(activeLesson.content, isDark)}
+                </div>
+                {/* 底部导航 */}
+                <div className={`flex items-center justify-between mt-8 pt-4 border-t ${isDark ? 'border-slate-700' : 'border-slate-200'}`}>
+                  {(() => { const idx = activeCourse.lessons.findIndex(l => l.id === activeLesson.id); return (
+                    <>
+                      {idx > 0 ? (
+                        <button onClick={() => setActiveLesson(activeCourse.lessons[idx - 1])} className={`text-sm px-4 py-2 rounded-lg cursor-pointer ${isDark ? 'bg-slate-700 text-slate-200' : 'bg-slate-100 text-slate-700'}`}>← 上一章</button>
+                      ) : <div />}
+                      {idx < activeCourse.lessons.length - 1 ? (
+                        <button onClick={() => setActiveLesson(activeCourse.lessons[idx + 1])} className="text-sm px-4 py-2 rounded-lg cursor-pointer bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:shadow-lg transition-all">下一章 →</button>
+                      ) : (
+                        <button onClick={() => startNewNote(activeCourse.milestoneId)} className="text-sm px-4 py-2 rounded-lg cursor-pointer bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:shadow-lg transition-all">✏️ 写学习笔记</button>
+                      )}
+                    </>
+                  )})()}
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* 课程列表 — 按里程碑分组 */
+            <div className="space-y-6">
+              {roadmap.milestones.filter(m => m.status !== 'done').map(m => {
+                const coursesForM = m.subTasks?.map(t => findCourse(m.id, t.title)).filter(Boolean) as CourseModule[] || []
+                if (coursesForM.length === 0) return null
+                return (
+                  <div key={m.id}>
+                    <h3 className={`text-sm font-bold mb-3 flex items-center gap-2 ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
+                      {m.status === 'in-progress' ? '🔄' : '⬜'} {m.title}
+                      <span className={`text-xs font-normal px-2 py-0.5 rounded ${isDark ? 'bg-slate-700 text-slate-400' : 'bg-slate-100 text-slate-500'}`}>{coursesForM.length} 个课程模块</span>
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {coursesForM.map(course => (
+                        <button key={course.subTaskTitle}
+                          onClick={() => { setActiveCourse(course); setActiveLesson(course.lessons[0]) }}
+                          className={`text-left p-4 rounded-xl border cursor-pointer transition-all hover:shadow-md ${isDark ? 'bg-slate-800 border-slate-700 hover:border-blue-500' : 'bg-white border-slate-100 hover:border-blue-200'}`}>
+                          <div className={`font-medium text-sm mb-1 ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>{course.subTaskTitle}</div>
+                          <div className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                            {course.lessons.length} 章 · {course.lessons.map(l => l.duration).join(' + ')}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
 

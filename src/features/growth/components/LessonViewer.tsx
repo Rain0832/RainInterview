@@ -31,35 +31,64 @@ export default function LessonViewer({
 
   // 提取课程中的第一个代码块作为 demo 初始值
   useEffect(() => {
-    const codeMatch = lesson.content.match(/```(?:python|cpp|javascript|js|py)?\n([\s\S]*?)```/)
+    const codeMatch = lesson.content.match(/```(?:python|cpp|javascript|js|py|c\+\+)?\n([\s\S]*?)```/)
     if (codeMatch) setDemoCode(codeMatch[1].trim())
     else setDemoCode('')
     setDemoOutput('')
+    setDemoLang(detectLang(lesson.content))
   }, [lesson.id])
 
-  // 模拟运行代码（沙箱模式——用 Function 执行 JS，Python/C++ 给提示）
-  const runDemo = () => {
+  const detectLang = (content: string): string => {
+    if (content.includes('```cpp') || content.includes('```c++')) return 'cpp'
+    if (content.includes('```python') || content.includes('```py')) return 'python'
+    return 'javascript'
+  }
+
+  const [demoLang, setDemoLang] = useState('javascript')
+
+  // 真实运行代码
+  const runDemo = async () => {
     setDemoRunning(true)
-    setTimeout(() => {
-      try {
-        // 只支持 JS 执行，其他语言给出提示
-        if (demoCode.includes('#include') || demoCode.includes('using namespace')) {
-          setDemoOutput('💡 C++ 代码需要在本地编译运行。\n建议：将代码复制到你的 RainCppAI 项目中测试。\n\n$ g++ -std=c++17 -o demo demo.cpp && ./demo')
-        } else if (demoCode.includes('import ') || demoCode.includes('def ') || demoCode.includes('print(')) {
-          setDemoOutput('💡 Python 代码需要本地 Python 环境。\n建议：\n$ python3 -c "' + demoCode.split('\n')[0] + '..."' + '\n\n或者在 https://www.online-python.com/ 在线运行')
-        } else {
-          // 尝试执行 JS
-          const logs: string[] = []
-          const mockConsole = { log: (...args: any[]) => logs.push(args.map(String).join(' ')) }
-          const fn = new Function('console', demoCode)
-          fn(mockConsole)
-          setDemoOutput(logs.join('\n') || '(无输出)')
+    setDemoOutput('⏳ 运行中...')
+    try {
+      if (demoLang === 'cpp' || demoCode.includes('#include') || demoCode.includes('using namespace')) {
+        // C++ → Wandbox API（免费在线编译器）
+        const resp = await fetch('https://wandbox.org/api/compile.json', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: demoCode, compiler: 'gcc-head', options: 'warning,c++17' }),
+        })
+        if (!resp.ok) throw new Error('Wandbox API 请求失败')
+        const data = await resp.json()
+        const output = (data.program_output || '') + (data.compiler_error || '') + (data.program_error || '')
+        setDemoOutput(output.trim() || '(编译成功，无输出)')
+      } else if (demoLang === 'python' || demoCode.includes('def ') || demoCode.includes('print(') || demoCode.includes('import ')) {
+        // Python → Wandbox API
+        const resp = await fetch('https://wandbox.org/api/compile.json', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: demoCode, compiler: 'cpython-3.12.0' }),
+        })
+        if (!resp.ok) throw new Error('Wandbox API 请求失败')
+        const data = await resp.json()
+        const output = (data.program_output || '') + (data.program_error || '')
+        setDemoOutput(output.trim() || '(运行成功，无输出)')
+      } else {
+        // JavaScript → 浏览器沙箱
+        const logs: string[] = []
+        const mockConsole = {
+          log: (...args: any[]) => logs.push(args.map(a => typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a)).join(' ')),
+          error: (...args: any[]) => logs.push('❌ ' + args.map(String).join(' ')),
+          warn: (...args: any[]) => logs.push('⚠️ ' + args.map(String).join(' ')),
         }
-      } catch (e: any) {
-        setDemoOutput(`错误: ${e.message}`)
+        const fn = new Function('console', demoCode)
+        fn(mockConsole)
+        setDemoOutput(logs.join('\n') || '(无输出)')
       }
-      setDemoRunning(false)
-    }, 500)
+    } catch (e: any) {
+      setDemoOutput(`❌ 错误: ${e.message}\n\n💡 如果在线编译器不可用，请复制代码到本地运行`)
+    }
+    setDemoRunning(false)
   }
 
   const c = isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-100'
@@ -120,19 +149,29 @@ export default function LessonViewer({
           {/* 互动代码 Demo */}
           {demoCode && (
             <div className={`mt-8 rounded-xl border overflow-hidden ${isDark ? 'border-slate-600' : 'border-slate-300'}`}>
-              <div className={`flex items-center justify-between px-4 py-2 ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`}>
-                <span className={`text-xs font-medium ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>🧪 互动实验室</span>
+              <div className={`flex items-center justify-between px-4 py-2.5 ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`}>
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>🧪 互动实验室</span>
+                  <div className="flex gap-1">
+                    {['javascript', 'python', 'cpp'].map(lang => (
+                      <button key={lang} onClick={() => setDemoLang(lang)}
+                        className={`text-[10px] px-2 py-0.5 rounded cursor-pointer transition-colors ${demoLang === lang ? 'bg-blue-600 text-white' : isDark ? 'bg-slate-600 text-slate-400' : 'bg-slate-300 text-slate-500'}`}>
+                        {lang === 'cpp' ? 'C++' : lang === 'python' ? 'Python' : 'JS'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <button onClick={runDemo} disabled={demoRunning}
-                  className="text-xs px-3 py-1 bg-green-600 text-white rounded-md cursor-pointer hover:bg-green-500 disabled:opacity-50 transition-colors">
-                  {demoRunning ? '⏳ 运行中...' : '▶ 运行'}
+                  className="text-xs px-4 py-1.5 bg-green-600 text-white rounded-lg cursor-pointer hover:bg-green-500 disabled:opacity-50 transition-colors font-medium">
+                  {demoRunning ? '⏳ 编译运行中...' : '▶ 运行代码'}
                 </button>
               </div>
               <textarea value={demoCode} onChange={e => setDemoCode(e.target.value)}
-                className={`w-full p-4 text-sm font-mono leading-relaxed resize-y border-0 outline-none min-h-[120px] ${isDark ? 'bg-slate-900 text-green-400' : 'bg-slate-50 text-slate-800'}`}
+                className={`w-full p-4 text-sm font-mono leading-relaxed resize-y border-0 outline-none min-h-[140px] ${isDark ? 'bg-slate-900 text-green-400' : 'bg-slate-50 text-slate-800'}`}
                 spellCheck={false} />
               {demoOutput && (
-                <div className={`border-t px-4 py-3 text-sm font-mono whitespace-pre-wrap ${isDark ? 'border-slate-600 bg-slate-800 text-slate-300' : 'border-slate-300 bg-white text-slate-700'}`}>
-                  <div className={`text-xs font-medium mb-1 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>输出:</div>
+                <div className={`border-t px-4 py-3 text-sm font-mono whitespace-pre-wrap max-h-[200px] overflow-y-auto ${isDark ? 'border-slate-600 bg-slate-800 text-slate-300' : 'border-slate-300 bg-white text-slate-700'}`}>
+                  <div className={`text-xs font-bold mb-1.5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>📤 输出结果:</div>
                   {demoOutput}
                 </div>
               )}

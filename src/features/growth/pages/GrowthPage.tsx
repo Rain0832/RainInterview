@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { useTheme } from '../../../contexts/ThemeContext'
 import { useAuth } from '../../../contexts/AuthContext'
 import { api } from '../../../services/api'
-import { findCourse, type CourseModule, type Lesson } from '../data/courses'
+import { findCourse, ALL_COURSES, type CourseModule, type Lesson } from '../data/courses'
+import LessonViewer from '../components/LessonViewer'
 
 // ==================== 类型 ====================
 
@@ -115,6 +116,7 @@ export default function GrowthPage() {
   const [expandedMilestone, setExpandedMilestone] = useState<string | null>(null)
   const [activeCourse, setActiveCourse] = useState<CourseModule | null>(null)
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null)
+  const [sideNote, setSideNote] = useState('')
 
   // 从服务器加载 or localStorage
   const loadData = useCallback(async () => {
@@ -329,74 +331,62 @@ export default function GrowthPage() {
       {activeTab === 'learn' && (
         <div>
           {activeCourse && activeLesson ? (
-            <div>
-              {/* 课程头部 */}
-              <div className={`rounded-2xl border p-5 mb-4 ${c}`}>
-                <div className="flex items-center justify-between mb-2">
-                  <h2 className={`text-lg font-bold ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>
-                    📚 {activeCourse.subTaskTitle}
-                  </h2>
-                  <button onClick={() => { setActiveCourse(null); setActiveLesson(null) }}
-                    className={`text-xs px-3 py-1.5 rounded-lg cursor-pointer ${isDark ? 'bg-slate-600 text-slate-300' : 'bg-slate-100 text-slate-600'}`}>
-                    ← 返回课程列表
-                  </button>
-                </div>
-                {/* 章节导航 */}
-                <div className="flex gap-2 flex-wrap">
-                  {activeCourse.lessons.map((l, i) => (
-                    <button key={l.id} onClick={() => setActiveLesson(l)}
-                      className={`text-xs px-3 py-1.5 rounded-lg cursor-pointer transition-colors ${activeLesson.id === l.id ? 'bg-blue-600 text-white' : isDark ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
-                      Ch.{i + 1} {l.title.slice(0, 20)}{l.title.length > 20 ? '...' : ''} <span className={`ml-1 opacity-70`}>({l.duration})</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {/* 课程内容 */}
-              <div className={`rounded-2xl border p-6 ${c}`}>
-                <div className="flex items-center gap-3 mb-4">
-                  <span className={`text-xs px-2 py-1 rounded-lg ${isDark ? 'bg-blue-900/40 text-blue-300' : 'bg-blue-50 text-blue-700'}`}>⏱ {activeLesson.duration}</span>
-                  <h3 className={`text-lg font-bold ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>{activeLesson.title}</h3>
-                </div>
-                <div className={`prose-content ${isDark ? 'dark-prose' : ''}`}>
-                  {renderMarkdown(activeLesson.content, isDark)}
-                </div>
-                {/* 底部导航 */}
-                <div className={`flex items-center justify-between mt-8 pt-4 border-t ${isDark ? 'border-slate-700' : 'border-slate-200'}`}>
-                  {(() => { const idx = activeCourse.lessons.findIndex(l => l.id === activeLesson.id); return (
-                    <>
-                      {idx > 0 ? (
-                        <button onClick={() => setActiveLesson(activeCourse.lessons[idx - 1])} className={`text-sm px-4 py-2 rounded-lg cursor-pointer ${isDark ? 'bg-slate-700 text-slate-200' : 'bg-slate-100 text-slate-700'}`}>← 上一章</button>
-                      ) : <div />}
-                      {idx < activeCourse.lessons.length - 1 ? (
-                        <button onClick={() => setActiveLesson(activeCourse.lessons[idx + 1])} className="text-sm px-4 py-2 rounded-lg cursor-pointer bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:shadow-lg transition-all">下一章 →</button>
-                      ) : (
-                        <button onClick={() => startNewNote(activeCourse.milestoneId)} className="text-sm px-4 py-2 rounded-lg cursor-pointer bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:shadow-lg transition-all">✏️ 写学习笔记</button>
-                      )}
-                    </>
-                  )})()}
-                </div>
-              </div>
-            </div>
+            <LessonViewer
+              course={activeCourse}
+              lesson={activeLesson}
+              allLessons={activeCourse.lessons}
+              onChangeLesson={setActiveLesson}
+              onBack={() => { setActiveCourse(null); setActiveLesson(null) }}
+              onWriteNote={(mId) => startNewNote(mId)}
+              sideNote={sideNote}
+              onSideNoteChange={setSideNote}
+              onSaveSideNote={() => {
+                if (sideNote.trim()) {
+                  const n: Note = { id: `local-${Date.now()}`, milestoneId: activeCourse.milestoneId, title: `学习笔记: ${activeLesson.title}`, content: sideNote }
+                  saveNote(n)
+                  setSideNote('')
+                }
+              }}
+            />
           ) : (
-            /* 课程列表 — 按里程碑分组 */
+            /* 课程目录 */
             <div className="space-y-6">
+              {/* 全局进度 */}
+              <div className={`rounded-2xl border p-5 ${c}`}>
+                <h2 className={`text-lg font-bold mb-3 ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>📚 学习课程</h2>
+                <p className={`text-sm mb-3 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                  共 {ALL_COURSES.length} 个模块 · {ALL_COURSES.reduce((s, c2) => s + c2.lessons.length, 0)} 节课。按路线图里程碑组织，点击开始学习。
+                </p>
+              </div>
+
               {roadmap.milestones.filter(m => m.status !== 'done').map(m => {
                 const coursesForM = m.subTasks?.map(t => findCourse(m.id, t.title)).filter(Boolean) as CourseModule[] || []
                 if (coursesForM.length === 0) return null
+                const totalLessons = coursesForM.reduce((s, c2) => s + c2.lessons.length, 0)
                 return (
                   <div key={m.id}>
-                    <h3 className={`text-sm font-bold mb-3 flex items-center gap-2 ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
-                      {m.status === 'in-progress' ? '🔄' : '⬜'} {m.title}
-                      <span className={`text-xs font-normal px-2 py-0.5 rounded ${isDark ? 'bg-slate-700 text-slate-400' : 'bg-slate-100 text-slate-500'}`}>{coursesForM.length} 个课程模块</span>
-                    </h3>
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="text-lg">{m.status === 'in-progress' ? '🔄' : '⬜'}</span>
+                      <h3 className={`font-bold ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>{m.title}</h3>
+                      <span className={`text-xs px-2.5 py-0.5 rounded-full ${isDark ? 'bg-slate-700 text-slate-400' : 'bg-slate-100 text-slate-500'}`}>
+                        {coursesForM.length} 模块 · {totalLessons} 课
+                      </span>
+                    </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {coursesForM.map(course => (
                         <button key={course.subTaskTitle}
                           onClick={() => { setActiveCourse(course); setActiveLesson(course.lessons[0]) }}
-                          className={`text-left p-4 rounded-xl border cursor-pointer transition-all hover:shadow-md ${isDark ? 'bg-slate-800 border-slate-700 hover:border-blue-500' : 'bg-white border-slate-100 hover:border-blue-200'}`}>
-                          <div className={`font-medium text-sm mb-1 ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>{course.subTaskTitle}</div>
-                          <div className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                            {course.lessons.length} 章 · {course.lessons.map(l => l.duration).join(' + ')}
+                          className={`group text-left p-5 rounded-xl border cursor-pointer transition-all hover:shadow-lg hover:-translate-y-0.5 ${isDark ? 'bg-slate-800 border-slate-700 hover:border-blue-500' : 'bg-white border-slate-100 hover:border-blue-200'}`}>
+                          <div className={`font-semibold text-sm mb-2 group-hover:text-blue-500 transition-colors ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>
+                            {course.subTaskTitle}
+                          </div>
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <span className={`text-xs px-2 py-0.5 rounded ${isDark ? 'bg-blue-900/40 text-blue-300' : 'bg-blue-50 text-blue-700'}`}>
+                              {course.lessons.length} 节课
+                            </span>
+                            {course.lessons.map(l => (
+                              <span key={l.id} className={`text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{l.duration}</span>
+                            ))}
                           </div>
                         </button>
                       ))}

@@ -1,4 +1,5 @@
 import type { CompanyInterview } from '../interviewTypes';
+import { newGroceryQuestions } from './meituan_new';
 
 export const meituanInterview: CompanyInterview = {
   id: 'meituan',
@@ -452,6 +453,13 @@ export const meituanInterview: CompanyInterview = {
               source: '牛客 2025 美团食杂零售面经',
             },
           ],
+        },
+        {
+          id: 'supplementary',
+          round: '高频八股 & 算法补充（35份面经精选）',
+          duration: '综合整理',
+          style: '来自 35 份真实面经的去重补充：Java/Spring/MySQL/Redis/MQ/网络/OS/AI/场景/算法',
+          questions: newGroceryQuestions,
         },
       ],
     },
